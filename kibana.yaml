@@ -1,0 +1,75 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: kibana
+spec:
+  replicas: 1
+  minReadySeconds: 30
+  template:
+    metadata:
+      labels:
+        deployment: kibana
+    spec:
+      initContainers:
+      - name: init-elasticsearch-service
+        image: busybox
+        command: ['sh', '-c', 'until nslookup elasticsearch-service; do echo waiting for elasticsearch-service; sleep 2; done;']
+      containers:
+      - name: kibana
+        image: docker.elastic.co/kibana/kibana:6.5.3
+        livenessProbe:
+          tcpSocket:
+            port: 5601
+          initialDelaySeconds: 20
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /api/status
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        imagePullPolicy: Always
+        ports:
+        -
+          containerPort: 5601
+          protocol: "TCP"
+          name: http
+        volumeMounts:
+        - name: kibana-yml
+          mountPath: /usr/share/kibana/config/kibana.yml
+          subPath: kibana.yml
+        env:
+        - name: NODE_IP
+          valueFrom:
+            fieldRef:
+             fieldPath: status.podIP
+      volumes:
+      - name: kibana-yml
+        configMap:
+          name: kibana-yml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana-service
+spec:
+  selector:
+    deployment: kibana
+  ports:
+    -
+      name: http
+      protocol: TCP
+      port: 5601
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: kibana-ingress
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        backend:
+          serviceName: kibana-service
+          servicePort: 5601
