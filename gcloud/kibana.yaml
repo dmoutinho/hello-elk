@@ -1,3 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana-service
+spec:
+  selector:
+    deployment: kibana
+  type: NodePort
+  ports:
+   - port: 5601
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: kibana-ingress
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /*
+        backend:
+          serviceName: kibana-service
+          servicePort: 5601
+---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -47,29 +71,3 @@ spec:
       - name: kibana-yml
         configMap:
           name: kibana-yml
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: kibana-service
-spec:
-  selector:
-    deployment: kibana
-  ports:
-    -
-      name: http
-      protocol: TCP
-      port: 5601
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: kibana-ingress
-spec:
-  rules:
-  - http:
-      paths:
-      - path: /
-        backend:
-          serviceName: kibana-service
-          servicePort: 5601
